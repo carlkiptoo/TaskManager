@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -16,16 +16,35 @@ import (
 
 func Register(c *gin.Context) {
 	var user models.User
+	var existingUser models.User
 
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 14)
-	user.Password = string(hashedPassword)
+	if user.Username == "" || user.Email == "" || user.Password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "All fields are required"})
+		return
+	}
 
-	config.DB.Create(&user)
+	if err := config.DB.Where("username = ? OR email = ?", user.Username, user.Email).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User already exists"})
+		return
+	}
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	newUser := models.User{
+		Username: user.Username,
+		Email: user.Email,
+		Password: string(hashedPassword),
+	}
+
+	if err := config.DB.Create(&newUser).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "User created successfully"})
 }
 
@@ -38,7 +57,17 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	config.DB.Where("email = ?", input.Email).First(&user)
+	fmt.Println(("Searching for email: " + input.Email))
+
+	config.DB.Debug().Where("email = ?", input.Email).First(&user)
+
+	if user.ID == 0 {
+		fmt.Println("User not found in DB")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email"})
+		return
+	}
+
+	// config.DB.Where("email = ?", input.Email).First(&user)
 	if user.ID == 0 || bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)) != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
