@@ -3,10 +3,10 @@ package controllers
 import (
 	"net/http"
 	"strconv"
-	"github.com/gin-gonic/gin"
-	"github.com/carlkiptoo/backend/models"
-	"github.com/carlkiptoo/backend/config"
 
+	"github.com/carlkiptoo/backend/config"
+	"github.com/carlkiptoo/backend/models"
+	"github.com/gin-gonic/gin"
 )
 
 func GetTasks(c *gin.Context) {
@@ -14,6 +14,20 @@ func GetTasks(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	config.DB.Where("user_id = ?", userID).Find(&tasks)
 	c.JSON(http.StatusOK, tasks)
+}
+
+func GetTaskById(c *gin.Context) {
+	var task models.Task
+	userID, _ := c.Get("user_id")
+
+	taskID := c.Param("id")
+
+	result := config.DB.Where("user_id = ? AND id = ?", userID, taskID).First(&task)
+	if result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Task not found"})
+		return
+	}
+	c.JSON(http.StatusOK, task)
 }
 
 func CreateTask(c *gin.Context) {
@@ -24,7 +38,8 @@ func CreateTask(c *gin.Context) {
 	}
 
 	userID, _ := c.Get("user_id")
-	task.UserID = userID.(uint)
+	task.UserID = uint(userID.(int))
+
 
 	config.DB.Create(&task)
 	c.JSON(http.StatusOK, task)
