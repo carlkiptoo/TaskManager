@@ -2,7 +2,7 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"backend/controllers"
+	"github.com/carlkiptoo/backend/controllers"
 )
 
 func UserRoutes(router *gin.Engine) {
