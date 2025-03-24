@@ -12,6 +12,7 @@ func main() {
 	config.ConnectDB()
 
 	routes.UserRoutes(r)
+	routes.TaskRoutes(r)
 
 	r.Run(":8080")
 }
